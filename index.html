@@ -90,7 +90,7 @@
             position:relative;width:120px;height:120px;
             border-radius:8px;overflow:hidden;background:#000
         }
-        .preview-item img{width:100%;height:100%;object-fit:cover}
+        .preview-item img{width:100%;height:100%;object-fit:cover;display:block}
         .remove{
             position:absolute;top:4px;right:4px;
             width:24px;height:24px;background:red;
@@ -114,18 +114,32 @@
             background:#00cc66;border:none;color:#fff;
             padding:8px 16px;border-radius:8px;cursor:pointer
         }
+        /* 加载提示 */
+        .loading-tip {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #0099ff;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 9999;
+            display: none;
+        }
     </style>
 </head>
 <body>
+<!-- 加载提示 -->
+<div class="loading-tip" id="loadingTip">正在加载限定标...</div>
+
 <div class="container">
     <div class="header">
         <h1>LiCN海报助手</h1>
-        <p>450x700 · 限定标处理 · 不改变文件大小</p>
+        <p>450x700 · 限定标处理</p>
     </div>
 
     <div class="section">
         <h2>选择限定标</h2>
-        <!-- 已删除配置说明文字 -->
         <div class="stamp-button-wrapper">
             <button id="stampBtn">点击选择限定标</button>
         </div>
@@ -135,7 +149,7 @@
         <h2>上传图片</h2>
         <div class="upload-area" id="uploadArea">
             <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple>
-            <p>点击或拖拽图片上传<br>支持 JPG / PNG / WebP，可多选 | 单张=一张处理，批量=批量处理</p>
+            <p>点击或拖拽图片上传<br>支持 JPG / PNG / WebP</p>
         </div>
         <div class="preview-area" id="previewArea"></div>
         <button class="btn" id="processBtn" disabled>开始处理</button>
@@ -155,21 +169,38 @@
 </div>
 
 <script>
-    // 核心配置（后台生效，不显示在界面）
+    // 核心配置
     const targetSize = { width: 450, height: 700 };
     const keepFileSize = true;
     const stampConfig = { position: 'center-bottom', sizePercent: 85 };
     let selectedStamp = null;
     let uploadedFiles = [];
 
-    // 生成10个限定标（1.png~10.png）
+    // 显示加载提示
+    const loadingTip = document.getElementById('loadingTip');
+    loadingTip.style.display = 'block';
+
+    // 生成限定标
     const stampGrid = document.getElementById('stampGrid');
+    let stampImagesLoaded = 0;
+
+    // 修复1：移除绝对路径“/”，直接读取同目录图片（本地运行必好）
     for (let i = 1; i <= 10; i++) {
         const item = document.createElement('div');
         item.className = 'stamp-item';
         item.dataset.index = i;
-        item.innerHTML = `<img src="/${i}.png" onerror="this.style.display='none';this.parentElement.style.background='#333'">`;
+        item.innerHTML = `<img src="${i}.png" alt="限定标${i}" onerror="onImageError(this, ${i})">`;
         stampGrid.appendChild(item);
+
+        // 监听加载
+        const img = item.querySelector('img');
+        img.onload = () => {
+            stampImagesLoaded++;
+            if (stampImagesLoaded === 10) {
+                loadingTip.style.display = 'none';
+                console.log("所有限定标加载完成！");
+            }
+        };
 
         item.onclick = () => {
             document.querySelectorAll('.stamp-item').forEach(s=>s.classList.remove('selected'));
@@ -178,6 +209,15 @@
             document.getElementById('stampModal').classList.remove('active');
             checkProcessBtn();
         };
+    }
+
+    // 错误处理
+    function onImageError(img, num) {
+        console.error(`读取 ${num}.png 失败，请确保图片和HTML在同一文件夹！`);
+        img.style.display = 'none';
+        img.parentElement.style.background = '#333';
+        stampImagesLoaded++;
+        if (stampImagesLoaded === 10) loadingTip.style.display = 'none';
     }
 
     // 弹窗控制
@@ -193,24 +233,51 @@
     const processBtn = document.getElementById('processBtn');
     const resultArea = document.getElementById('resultArea');
 
+    // 修复2：添加拖拽上传支持，同时确保点击上传正常
     uploadArea.onclick = () => fileInput.click();
-    fileInput.onchange = handleFiles;
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.style.borderColor = '#66b3ff';
+    });
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.style.borderColor = 'rgba(255,255,255,.2)';
+    });
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.style.borderColor = 'rgba(255,255,255,.2)';
+        if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+    });
 
+    fileInput.onchange = (e) => handleFiles(e.target.files);
+
+    // 修复3：强制预览图渲染，添加读取失败提示
     function handleFiles(files) {
         uploadedFiles = Array.from(files).filter(f=>f.type.startsWith('image/'));
         previewArea.innerHTML = "";
+
+        if (uploadedFiles.length === 0) {
+            alert("请选择有效的图片文件（JPG/PNG/WebP）！");
+            return;
+        }
+
         uploadedFiles.forEach((file, idx) => {
             const reader = new FileReader();
             reader.onload = (e) => {
                 const item = document.createElement('div');
                 item.className = "preview-item";
-                item.innerHTML = `<img src="${e.target.result}"><div class="remove" data-idx="${idx}">×</div>`;
+                // 强制设置img为块级元素，避免间隙导致不显示
+                item.innerHTML = `<img src="${e.target.result}" alt="预览图${idx+1}" style="display:block;"><div class="remove" data-idx="${idx}">×</div>`;
                 previewArea.appendChild(item);
+
                 item.querySelector('.remove').onclick = () => {
                     uploadedFiles.splice(idx, 1);
                     item.remove();
                     checkProcessBtn();
                 };
+            };
+            // 修复4：添加读取失败处理，避免无声卡死
+            reader.onerror = () => {
+                alert(`文件 ${file.name} 读取失败，请重试！`);
             };
             reader.readAsDataURL(file);
         });
@@ -225,6 +292,7 @@
     processBtn.onclick = async () => {
         resultArea.style.display = "none";
         resultArea.innerHTML = "";
+
         for (let i = 0; i < uploadedFiles.length; i++) {
             const file = uploadedFiles[i];
             const blob = await processImage(file);
@@ -240,6 +308,7 @@
                 <button class="download" data-url="${url}" data-name="${file.name}">下载</button>
             `;
             resultArea.appendChild(item);
+
             item.querySelector('.download').onclick = (e) => {
                 const a = document.createElement('a');
                 a.href = e.target.dataset.url;
@@ -250,7 +319,7 @@
         resultArea.style.display = "block";
     };
 
-    // 核心处理（按要求：450x700、限定标居中偏下85%宽度、不改变文件大小）
+    // 核心处理
     async function processImage(file) {
         return new Promise(resolve => {
             const reader = new FileReader();
@@ -262,7 +331,7 @@
                     canvas.width = targetSize.width;
                     canvas.height = targetSize.height;
 
-                    // 原图缩放居中
+                    // 原图居中缩放
                     const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
                     const w = img.width * scale;
                     const h = img.height * scale;
@@ -270,17 +339,18 @@
                     const y = (canvas.height - h) / 2;
                     ctx.drawImage(img, x, y, w, h);
 
-                    // 限定标居中偏下（85%宽度）
+                    // 限定标处理：修复路径，移除绝对路径“/”
                     const stampImg = new Image();
                     stampImg.onload = () => {
                         const sW = canvas.width * stampConfig.sizePercent / 100;
                         const sH = (stampImg.height / stampImg.width) * sW;
                         const sx = (canvas.width - sW) / 2;
                         const sy = canvas.height - sH - 20;
+
                         ctx.drawImage(stampImg, sx, sy, sW, sH);
                         canvas.toBlob(blob=>resolve(blob), file.type, 0.95);
                     };
-                    stampImg.src = "/" + selectedStamp + ".png";
+                    stampImg.src = selectedStamp + ".png";
                 };
                 img.src = e.target.result;
             };
