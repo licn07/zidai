@@ -59,7 +59,7 @@
         }
 
         .btn-group{
-            display:flex;gap:8px;width:100%
+            display:flex;gap:8px;width:100%;margin-bottom:8px
         }
         .process-btn{
             flex:1;padding:14px;
@@ -74,13 +74,24 @@
             background:#00cc66;color:#fff;font-size:16px;cursor:pointer;display:none
         }
 
-        #fileInput{display:none}
-        .result-area{display:none;margin-top:10px}
-        .result-item{
-            display:flex;align-items:center;gap:10px;
-            padding:10px;background:rgba(255,255,255,.05);border-radius:10px;margin-bottom:10px
+        .result-preview{
+            width:100%;
+            max-width:100%;
+            aspect-ratio:450/700;
+            border-radius:12px;
+            overflow:hidden;
+            background:#222;
+            display:none;
+            margin:0 auto;
         }
-        .result-item img{width:50px;height:50px;border-radius:6px;object-fit:cover}
+        .result-preview img{
+            width:100%;
+            height:100%;
+            object-fit:contain;
+            display:block;
+        }
+
+        #fileInput{display:none}
     </style>
 </head>
 <body>
@@ -106,7 +117,7 @@
             <button class="download-btn" id="downloadBtn">下载图片</button>
         </div>
 
-        <div class="result-area" id="resultArea"></div>
+        <div class="result-preview" id="resultPreview"></div>
     </div>
 </div>
 
@@ -114,9 +125,8 @@
     const targetSize = { width: 450, height: 700 };
     let selectedStamp = 1;
     let uploadedFiles = [];
-    let finalUrls = [];
+    let finalBlob = null;
 
-    // 绑定DOM元素
     const stampList = document.getElementById('stampList');
     const uploadBtn = document.getElementById('uploadBtn');
     const fileInput = document.createElement('input');
@@ -130,9 +140,8 @@
     const previewArea = document.getElementById('previewArea');
     const processBtn = document.getElementById('processBtn');
     const downloadBtn = document.getElementById('downloadBtn');
-    const resultArea = document.getElementById('resultArea');
+    const resultPreview = document.getElementById('resultPreview');
 
-    // 生成限定标
     for(let i=1;i<=10;i++){
         let item = document.createElement('div');
         item.className = 'stamp-item';
@@ -147,13 +156,11 @@
         }
     }
 
-    // 上传按钮绑定
     uploadBtn.onclick = ()=>{
         fileInput.value = '';
         fileInput.click();
     };
 
-    // 文件选择事件
     fileInput.onchange = (e)=>{
         const files = e.target.files;
         if(!files || files.length === 0) return;
@@ -174,56 +181,39 @@
         checkEnable();
     };
 
-    // 按钮状态检查
     function checkEnable(){
         processBtn.disabled = !(uploadedFiles.length > 0 && selectedStamp);
     }
 
-    // 处理按钮事件
     processBtn.onclick = async ()=>{
         processBtn.innerText = "处理中...";
         processBtn.disabled = true;
         downloadBtn.style.display = "none";
-        resultArea.innerHTML = '';
-        finalUrls = [];
+        resultPreview.style.display = "none";
 
-        for(let f of uploadedFiles){
-            let blob = await processImg(f);
-            let url = URL.createObjectURL(blob);
-            finalUrls.push({url: url, name: f.name});
-            let div = document.createElement('div');
-            div.className = 'result-item';
-            div.innerHTML = `
-                <img src="${url}">
-                <span>${f.name}</span>
-                <button class="download-btn" style="display:block;margin-left:auto">下载</button>
-            `;
-            resultArea.appendChild(div);
-            div.querySelector('.download-btn').onclick = ()=>{
-                let a = document.createElement('a');
-                a.href = url;
-                a.download = 'LiCN_'+f.name;
-                a.click();
-            };
-        }
+        const file = uploadedFiles[0];
+        const blob = await processImg(file);
+        finalBlob = blob;
+        const url = URL.createObjectURL(blob);
+
+        resultPreview.innerHTML = `<img src="${url}">`;
+        resultPreview.style.display = "block";
 
         processBtn.innerText = "处理完成";
         processBtn.disabled = false;
         downloadBtn.style.display = "block";
-        resultArea.style.display = "block";
     };
 
-    // 总下载按钮
     downloadBtn.onclick = ()=>{
-        finalUrls.forEach(item=>{
-            let a = document.createElement('a');
-            a.href = item.url;
-            a.download = 'LiCN_'+item.name;
-            a.click();
-        });
+        if(!finalBlob) return;
+        const url = URL.createObjectURL(finalBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'LiCN_海报.png';
+        a.click();
+        URL.revokeObjectURL(url);
     };
 
-    // 核心处理函数
     async function processImg(file){
         return new Promise((resolve) => {
             let img = new Image();
@@ -261,7 +251,6 @@
         });
     }
 
-    // 初始检查
     checkEnable();
 </script>
 
