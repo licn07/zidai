@@ -129,9 +129,6 @@
     </style>
 </head>
 <body>
-<!-- 加载提示 -->
-<div class="loading-tip" id="loadingTip">正在加载限定标...</div>
-
 <div class="container">
     <div class="header">
         <h1>LiCN海报助手</h1>
@@ -157,7 +154,6 @@
     </div>
 </div>
 
-<!-- 限定标弹窗 -->
 <div class="stamp-modal" id="stampModal">
     <div class="stamp-modal-box">
         <div class="stamp-modal-header">
@@ -169,37 +165,16 @@
 </div>
 
 <script>
-    // 核心配置
     const targetSize = { width: 450, height: 700 };
-    const keepFileSize = true;
-    const stampConfig = { position: 'center', sizePercent: 85 };
+    const stampConfig = { sizePercent: 85 };
     let selectedStamp = null;
     let uploadedFiles = [];
-
-    // 显示加载提示
-    const loadingTip = document.getElementById('loadingTip');
-    loadingTip.style.display = 'block';
-
-    // 生成限定标
-    const stampGrid = document.getElementById('stampGrid');
-    let stampImagesLoaded = 0;
 
     for (let i = 1; i <= 10; i++) {
         const item = document.createElement('div');
         item.className = 'stamp-item';
-        item.dataset.index = i;
-        item.innerHTML = `<img src="${i}.png" alt="限定标${i}" onerror="onImageError(this, ${i})">`;
-        stampGrid.appendChild(item);
-
-        const img = item.querySelector('img');
-        img.onload = () => {
-            stampImagesLoaded++;
-            if (stampImagesLoaded === 10) {
-                loadingTip.style.display = 'none';
-                console.log("所有限定标加载完成！");
-            }
-        };
-
+        item.innerHTML = `<img src="${i}.png" alt="标${i}">`;
+        document.getElementById('stampGrid').appendChild(item);
         item.onclick = () => {
             document.querySelectorAll('.stamp-item').forEach(s=>s.classList.remove('selected'));
             item.classList.add('selected');
@@ -209,147 +184,72 @@
         };
     }
 
-    // 错误处理
-    function onImageError(img, num) {
-        console.error(`读取 ${num}.png 失败，请确保图片和HTML在同一文件夹！`);
-        img.style.display = 'none';
-        img.parentElement.style.background = '#333';
-        stampImagesLoaded++;
-        if (stampImagesLoaded === 10) loadingTip.style.display = 'none';
-    }
-
-    // 弹窗控制
-    const stampModal = document.getElementById('stampModal');
     document.getElementById('stampBtn').onclick = () => stampModal.classList.add('active');
     document.getElementById('stampClose').onclick = () => stampModal.classList.remove('active');
     stampModal.onclick = (e)=>{ if(e.target === stampModal) stampModal.classList.remove('active') };
 
-    // 上传控制
-    const fileInput = document.getElementById('fileInput');
-    const uploadArea = document.getElementById('uploadArea');
-    const previewArea = document.getElementById('previewArea');
-    const processBtn = document.getElementById('processBtn');
-    const resultArea = document.getElementById('resultArea');
-
-    uploadArea.onclick = () => fileInput.click();
-    uploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        uploadArea.style.borderColor = '#66b3ff';
-    });
-    uploadArea.addEventListener('dragleave', () => {
-        uploadArea.style.borderColor = 'rgba(255,255,255,.2)';
-    });
-    uploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        uploadArea.style.borderColor = 'rgba(255,255,255,.2)';
-        if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
-    });
-
+    document.getElementById('uploadArea').onclick = () => fileInput.click();
     fileInput.onchange = (e) => handleFiles(e.target.files);
 
     function handleFiles(files) {
-        uploadedFiles = Array.from(files).filter(f=>f.type.startsWith('image/'));
+        uploadedFiles = Array.from(files);
         previewArea.innerHTML = "";
-
-        if (uploadedFiles.length === 0) {
-            alert("请选择有效的图片文件（JPG/PNG/WebP）！");
-            return;
-        }
-
-        uploadedFiles.forEach((file, idx) => {
+        uploadedFiles.forEach((f, i) => {
             const reader = new FileReader();
-            reader.onload = (e) => {
-                const item = document.createElement('div');
-                item.className = "preview-item";
-                item.innerHTML = `<img src="${e.target.result}" alt="预览图${idx+1}" style="display:block;"><div class="remove" data-idx="${idx}">×</div>`;
-                previewArea.appendChild(item);
-
-                item.querySelector('.remove').onclick = () => {
-                    uploadedFiles.splice(idx, 1);
-                    item.remove();
-                    checkProcessBtn();
-                };
+            reader.onload = e => {
+                const div = document.createElement('div');
+                div.className = 'preview-item';
+                div.innerHTML = `<img src="${e.target.result}"><div class="remove" data-i="${i}">×</div>`;
+                previewArea.appendChild(div);
+                div.querySelector('.remove').onclick = () => { uploadedFiles.splice(i,1); div.remove(); checkProcessBtn(); }
             };
-            reader.onerror = () => {
-                alert(`文件 ${file.name} 读取失败，请重试！`);
-            };
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(f);
         });
         checkProcessBtn();
     }
 
     function checkProcessBtn() {
-        processBtn.disabled = uploadedFiles.length === 0 || selectedStamp === null;
+        processBtn.disabled = !uploadedFiles.length || selectedStamp === null;
     }
 
-    // 处理图片
     processBtn.onclick = async () => {
-        resultArea.style.display = "none";
         resultArea.innerHTML = "";
-
-        for (let i = 0; i < uploadedFiles.length; i++) {
-            const file = uploadedFiles[i];
-            const blob = await processImage(file);
-            const url = URL.createObjectURL(blob);
-            const item = document.createElement('div');
-            item.className = "result-item";
-            item.innerHTML = `
-                <img src="${url}">
-                <div>
-                    <p>${file.name}</p>
-                    <p>处理完成</p>
-                </div>
-                <button class="download" data-url="${url}" data-name="${file.name}">下载</button>
-            `;
-            resultArea.appendChild(item);
-
-            item.querySelector('.download').onclick = (e) => {
-                const a = document.createElement('a');
-                a.href = e.target.dataset.url;
-                a.download = "处理_"+e.target.dataset.name;
-                a.click();
-            };
-        }
         resultArea.style.display = "block";
+        for(let f of uploadedFiles){
+            const blob = await processImage(f);
+            const url = URL.createObjectURL(blob);
+            const div = document.createElement('div');
+            div.className = 'result-item';
+            div.innerHTML = `<img src="${url}"><div>${f.name}</div><a class="download" href="${url}" download="LiCN_${f.name}">下载</a>`;
+            resultArea.appendChild(div);
+        }
     };
 
-    // 核心处理：正中间 + 下移「半个限定标高度」
     async function processImage(file) {
         return new Promise(resolve => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    canvas.width = targetSize.width;
-                    canvas.height = targetSize.height;
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 450;
+                canvas.height = 700;
+                const scale = Math.max(canvas.width/img.width, canvas.height/img.height);
+                const w = img.width*scale, h = img.height*scale;
+                ctx.drawImage(img, (canvas.width-w)/2, (canvas.height-h)/2, w, h);
 
-                    // 原图居中缩放
-                    const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
-                    const w = img.width * scale;
-                    const h = img.height * scale;
-                    const x = (canvas.width - w) / 2;
-                    const y = (canvas.height - h) / 2;
-                    ctx.drawImage(img, x, y, w, h);
-
-                    // 限定标位置：正中间 + 下移「自身高度的50%」（半个限定标距离）
-                    const stampImg = new Image();
-                    stampImg.onload = () => {
-                        const sW = canvas.width * stampConfig.sizePercent / 100;
-                        const sH = (stampImg.height / stampImg.width) * sW;
-                        const sx = (canvas.width - sW) / 2; // 水平正中间
-                        // 垂直正中间 + 下移 sH * 0.5（半个限定标高度）
-                        const sy = (canvas.height - sH) / 2 + (sH * 0.5);
-
-                        ctx.drawImage(stampImg, sx, sy, sW, sH);
-                        canvas.toBlob(blob=>resolve(blob), file.type, 0.95);
-                    };
-                    stampImg.src = selectedStamp + ".png";
+                const stamp = new Image();
+                stamp.onload = () => {
+                    const sW = canvas.width * 0.85;
+                    const sH = stamp.height / stamp.width * sW;
+                    const sx = (canvas.width - sW) / 2;
+                    // 正中间 + 下移半个限定标 + 再下移30px（最终位置！）
+                    const sy = (canvas.height - sH) / 2 + sH*0.5 + 30;
+                    ctx.drawImage(stamp, sx, sy, sW, sH);
+                    canvas.toBlob(b => resolve(b), 'image/png');
                 };
-                img.src = e.target.result;
+                stamp.src = selectedStamp + ".png";
             };
-            reader.readAsDataURL(file);
+            img.src = URL.createObjectURL(file);
         });
     }
 </script>
