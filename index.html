@@ -184,7 +184,6 @@
     const stampGrid = document.getElementById('stampGrid');
     let stampImagesLoaded = 0;
 
-    // 修复1：移除绝对路径“/”，直接读取同目录图片（本地运行必好）
     for (let i = 1; i <= 10; i++) {
         const item = document.createElement('div');
         item.className = 'stamp-item';
@@ -192,7 +191,6 @@
         item.innerHTML = `<img src="${i}.png" alt="限定标${i}" onerror="onImageError(this, ${i})">`;
         stampGrid.appendChild(item);
 
-        // 监听加载
         const img = item.querySelector('img');
         img.onload = () => {
             stampImagesLoaded++;
@@ -233,7 +231,6 @@
     const processBtn = document.getElementById('processBtn');
     const resultArea = document.getElementById('resultArea');
 
-    // 修复2：添加拖拽上传支持，同时确保点击上传正常
     uploadArea.onclick = () => fileInput.click();
     uploadArea.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -250,7 +247,6 @@
 
     fileInput.onchange = (e) => handleFiles(e.target.files);
 
-    // 修复3：强制预览图渲染，添加读取失败提示
     function handleFiles(files) {
         uploadedFiles = Array.from(files).filter(f=>f.type.startsWith('image/'));
         previewArea.innerHTML = "";
@@ -265,7 +261,6 @@
             reader.onload = (e) => {
                 const item = document.createElement('div');
                 item.className = "preview-item";
-                // 强制设置img为块级元素，避免间隙导致不显示
                 item.innerHTML = `<img src="${e.target.result}" alt="预览图${idx+1}" style="display:block;"><div class="remove" data-idx="${idx}">×</div>`;
                 previewArea.appendChild(item);
 
@@ -275,7 +270,6 @@
                     checkProcessBtn();
                 };
             };
-            // 修复4：添加读取失败处理，避免无声卡死
             reader.onerror = () => {
                 alert(`文件 ${file.name} 读取失败，请重试！`);
             };
@@ -319,7 +313,7 @@
         resultArea.style.display = "block";
     };
 
-    // 核心处理
+    // 核心处理：仅修改限定标Y轴位置（sy），其他不变
     async function processImage(file) {
         return new Promise(resolve => {
             const reader = new FileReader();
@@ -339,13 +333,13 @@
                     const y = (canvas.height - h) / 2;
                     ctx.drawImage(img, x, y, w, h);
 
-                    // 限定标处理：修复路径，移除绝对路径“/”
+                    // 限定标处理：sy从 canvas.height - sH - 20 改为 canvas.height - sH（紧贴底部）
                     const stampImg = new Image();
                     stampImg.onload = () => {
                         const sW = canvas.width * stampConfig.sizePercent / 100;
                         const sH = (stampImg.height / stampImg.width) * sW;
-                        const sx = (canvas.width - sW) / 2;
-                        const sy = canvas.height - sH - 20;
+                        const sx = (canvas.width - sW) / 2; // 水平居中不变
+                        const sy = canvas.height - sH; // 紧贴底部（删除原来的-20）
 
                         ctx.drawImage(stampImg, sx, sy, sW, sH);
                         canvas.toBlob(blob=>resolve(blob), file.type, 0.95);
