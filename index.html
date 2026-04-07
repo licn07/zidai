@@ -12,7 +12,7 @@
         }
         .container{max-width:500px;margin:0 auto}
         .header{
-            text-align:center;margin:0 25px;
+            text-align:center;margin:0 0 25px;
             padding:20px;background:rgba(255,255,255,.05);
             border-radius:16px
         }
@@ -74,15 +74,13 @@
             background:#00cc66;color:#fff;font-size:16px;cursor:pointer;display:none
         }
 
-        /* 只改这里：缩小一半显示，居中，不改动图片本身！ */
         .result-preview{
-            width: 50%;
-            margin: 0 auto;
+            width:50%;
+            margin:0 auto 8px auto;
             aspect-ratio:450/700;
             border-radius:12px;
             overflow:hidden;
             background:#222;
-            display:none;
         }
         .result-preview img{
             width:100%;
@@ -117,7 +115,7 @@
             <button class="download-btn" id="downloadBtn">下载图片</button>
         </div>
 
-        <div class="result-preview" id="resultPreview"></div>
+        <div id="resultContainer"></div>
     </div>
 </div>
 
@@ -125,7 +123,7 @@
     const targetSize = { width: 450, height: 700 };
     let selectedStamp = 1;
     let uploadedFiles = [];
-    let finalBlob = null;
+    let allUrls = [];
 
     const stampList = document.getElementById('stampList');
     const uploadBtn = document.getElementById('uploadBtn');
@@ -140,7 +138,7 @@
     const previewArea = document.getElementById('previewArea');
     const processBtn = document.getElementById('processBtn');
     const downloadBtn = document.getElementById('downloadBtn');
-    const resultPreview = document.getElementById('resultPreview');
+    const resultContainer = document.getElementById('resultContainer');
 
     for(let i=1;i<=10;i++){
         let item = document.createElement('div');
@@ -189,15 +187,19 @@
         processBtn.innerText = "处理中...";
         processBtn.disabled = true;
         downloadBtn.style.display = "none";
-        resultPreview.style.display = "none";
+        resultContainer.innerHTML = "";
+        allUrls = [];
 
-        const file = uploadedFiles[0];
-        const blob = await processImg(file);
-        finalBlob = blob;
-        const url = URL.createObjectURL(blob);
+        for(let file of uploadedFiles){
+            let blob = await processImg(file);
+            let url = URL.createObjectURL(blob);
+            allUrls.push(url);
 
-        resultPreview.innerHTML = `<img src="${url}">`;
-        resultPreview.style.display = "block";
+            let box = document.createElement('div');
+            box.className = 'result-preview';
+            box.innerHTML = `<img src="${url}">`;
+            resultContainer.appendChild(box);
+        }
 
         processBtn.innerText = "处理完成";
         processBtn.disabled = false;
@@ -205,13 +207,12 @@
     };
 
     downloadBtn.onclick = ()=>{
-        if(!finalBlob) return;
-        const url = URL.createObjectURL(finalBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'LiCN_海报.png';
-        a.click();
-        URL.revokeObjectURL(url);
+        for(let i=0;i<allUrls.length;i++){
+            let a = document.createElement('a');
+            a.href = allUrls[i];
+            a.download = 'LiCN_海报_'+(i+1)+'.png';
+            a.click();
+        }
     };
 
     async function processImg(file){
@@ -237,15 +238,7 @@
                     ctx.drawImage(stamp, sx, sy, sw, sh);
                     canvas.toBlob((b)=>resolve(b),'image/png',1);
                 };
-                stamp.onerror = ()=>{
-                    alert('限定标加载失败，请检查1-10.png是否在同一目录');
-                    resolve(null);
-                };
                 stamp.src = selectedStamp + '.png';
-            };
-            img.onerror = ()=>{
-                alert('图片加载失败');
-                resolve(null);
             };
             img.src = URL.createObjectURL(file);
         });
