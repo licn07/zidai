@@ -70,14 +70,12 @@
             background:rgba(255,255,255,.08);
             border-radius:12px;padding:12px;
             text-align:center;cursor:pointer;
-            border:2px solid transparent
+            border:2px solid transparent;
+            height:80px;display:flex;align-items:center;justify-content:center
         }
         .stamp-item:hover{background:rgba(255,255,255,.12)}
         .stamp-item.selected{border-color:#ffb700;box-shadow:0 0 12px rgba(255,183,0,.4)}
-        .stamp-item img{
-            max-width:100%;max-height:80px;
-            object-fit:contain
-        }
+        .stamp-item img{max-width:100%;max-height:100%;object-fit:contain;display:block}
 
         /* 上传与结果 */
         .upload-area{
@@ -87,10 +85,7 @@
         }
         .upload-area:hover{border-color:#66b3ff}
         #fileInput{display:none}
-        .preview-area{
-            display:flex;flex-wrap:wrap;gap:12px;
-            margin:0 0 20px
-        }
+        .preview-area{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 20px}
         .preview-item{
             position:relative;width:120px;height:120px;
             border-radius:8px;overflow:hidden;background:#000
@@ -119,12 +114,6 @@
             background:#00cc66;border:none;color:#fff;
             padding:8px 16px;border-radius:8px;cursor:pointer
         }
-        .config-info{
-            background:rgba(0,0,0,.2);padding:12px 16px;
-            border-radius:8px;margin:0 0 20px;font-size:16px;
-            line-height:1.6;color:#e0e0e0
-        }
-        .config-info strong{color:#66b3ff}
     </style>
 </head>
 <body>
@@ -136,9 +125,7 @@
 
     <div class="section">
         <h2>选择限定标</h2>
-        <div class="config-info">
-            位置：<strong>中心偏下</strong> | 大小：<strong>图片宽度85%</strong> | 处理后尺寸：<strong>450x700</strong> | <strong>不改变文件大小</strong>
-        </div>
+        <!-- 已删除配置说明文字 -->
         <div class="stamp-button-wrapper">
             <button id="stampBtn">点击选择限定标</button>
         </div>
@@ -168,27 +155,26 @@
 </div>
 
 <script>
-    // 配置
+    // 核心配置（后台生效，不显示在界面）
     const targetSize = { width: 450, height: 700 };
     const keepFileSize = true;
+    const stampConfig = { position: 'center-bottom', sizePercent: 85 };
     let selectedStamp = null;
     let uploadedFiles = [];
 
-    // 生成10个限定标 1.png~10.png，左→右、上→下，不显示名字
+    // 生成10个限定标（1.png~10.png）
     const stampGrid = document.getElementById('stampGrid');
     for (let i = 1; i <= 10; i++) {
         const item = document.createElement('div');
         item.className = 'stamp-item';
         item.dataset.index = i;
-        item.innerHTML = `<img src="/${i}.png" alt="">`;
+        item.innerHTML = `<img src="/${i}.png" onerror="this.style.display='none';this.parentElement.style.background='#333'">`;
         stampGrid.appendChild(item);
 
         item.onclick = () => {
-            // 选中样式
             document.querySelectorAll('.stamp-item').forEach(s=>s.classList.remove('selected'));
             item.classList.add('selected');
             selectedStamp = i;
-            // 关闭弹窗
             document.getElementById('stampModal').classList.remove('active');
             checkProcessBtn();
         };
@@ -213,7 +199,6 @@
     function handleFiles(files) {
         uploadedFiles = Array.from(files).filter(f=>f.type.startsWith('image/'));
         previewArea.innerHTML = "";
-
         uploadedFiles.forEach((file, idx) => {
             const reader = new FileReader();
             reader.onload = (e) => {
@@ -221,7 +206,6 @@
                 item.className = "preview-item";
                 item.innerHTML = `<img src="${e.target.result}"><div class="remove" data-idx="${idx}">×</div>`;
                 previewArea.appendChild(item);
-
                 item.querySelector('.remove').onclick = () => {
                     uploadedFiles.splice(idx, 1);
                     item.remove();
@@ -241,24 +225,21 @@
     processBtn.onclick = async () => {
         resultArea.style.display = "none";
         resultArea.innerHTML = "";
-
         for (let i = 0; i < uploadedFiles.length; i++) {
             const file = uploadedFiles[i];
             const blob = await processImage(file);
             const url = URL.createObjectURL(blob);
-
             const item = document.createElement('div');
             item.className = "result-item";
             item.innerHTML = `
                 <img src="${url}">
                 <div>
                     <p>${file.name}</p>
-                    <p>尺寸：450x700 | 限定标：已添加</p>
+                    <p>处理完成</p>
                 </div>
                 <button class="download" data-url="${url}" data-name="${file.name}">下载</button>
             `;
             resultArea.appendChild(item);
-
             item.querySelector('.download').onclick = (e) => {
                 const a = document.createElement('a');
                 a.href = e.target.dataset.url;
@@ -266,11 +247,10 @@
                 a.click();
             };
         }
-
         resultArea.style.display = "block";
     };
 
-    // 核心处理函数
+    // 核心处理（按要求：450x700、限定标居中偏下85%宽度、不改变文件大小）
     async function processImage(file) {
         return new Promise(resolve => {
             const reader = new FileReader();
@@ -279,12 +259,10 @@
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
-
-                    // 目标尺寸 450x700
                     canvas.width = targetSize.width;
                     canvas.height = targetSize.height;
 
-                    // 原图等比缩放居中
+                    // 原图缩放居中
                     const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
                     const w = img.width * scale;
                     const h = img.height * scale;
@@ -292,16 +270,14 @@
                     const y = (canvas.height - h) / 2;
                     ctx.drawImage(img, x, y, w, h);
 
-                    // 限定标居中偏下，宽度85%
+                    // 限定标居中偏下（85%宽度）
                     const stampImg = new Image();
                     stampImg.onload = () => {
-                        const sW = canvas.width * 0.85;
+                        const sW = canvas.width * stampConfig.sizePercent / 100;
                         const sH = (stampImg.height / stampImg.width) * sW;
                         const sx = (canvas.width - sW) / 2;
-                        const sy = canvas.height - sH - 20; // 底部留20px边距
-
+                        const sy = canvas.height - sH - 20;
                         ctx.drawImage(stampImg, sx, sy, sW, sH);
-                        // 保持原质量，不改变文件大小
                         canvas.toBlob(blob=>resolve(blob), file.type, 0.95);
                     };
                     stampImg.src = "/" + selectedStamp + ".png";
