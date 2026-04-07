@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiCN海报助手</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:"Microsoft YaHei"}
+        body{
+            background:linear-gradient(135deg,#1a1a2e,#16213e);
+            min-height:100vh;padding:20px;color:#fff
+        }
+        .container{max-width:800px;margin:0 auto}
+        .header{
+            text-align:center;margin:0 0 30px;
+            padding:20px;background:rgba(255,255,255,.05);
+            border-radius:16px;backdrop-filter:blur(10px)
+        }
+        .header h1{
+            font-size:28px;
+            background:linear-gradient(90deg,#00d4ff,#ff00ff);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent
+        }
+        .section{
+            background:rgba(255,255,255,.05);
+            border-radius:16px;padding:24px;margin:0 0 20px;
+            backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.1)
+        }
+        .section h2{
+            font-size:22px;margin:0 0 16px;
+            color:#66b3ff;display:flex;align-items:center;gap:8px
+        }
+        .stamp-button-wrapper{text-align:center;margin:0 0 20px}
+        #stampBtn{
+            padding:16px 32px;border:none;
+            border-radius:999px;background:linear-gradient(90deg,#0099ff,#00ccff);
+            color:#fff;font-size:20px;cursor:pointer;width:100%;
+            font-weight:bold
+        }
+        #stampBtn:hover{opacity:.9;transform:translateY(-2px);transition:all .3s}
+
+        /* 弹窗 */
+        .stamp-modal{
+            position:fixed;top:0;left:0;right:0;bottom:0;
+            background:rgba(0,0,0,.6);display:none;
+            justify-content:center;align-items:center;z-index:999
+        }
+        .stamp-modal.active{display:flex}
+        .stamp-modal-box{
+            background:#111;border-radius:14px;
+            width:90%;max-width:500px;max-height:80vh;
+            overflow-y:auto;padding:20px
+        }
+        .stamp-modal-header{
+            display:flex;justify-content:space-between;
+            align-items:center;margin:0 0 16px
+        }
+        .stamp-modal-title{font-size:18px;color:#fff}
+        .stamp-close{
+            font-size:22px;color:#fff;
+            background:none;border:none;cursor:pointer
+        }
+
+        /* 限定标网格 */
+        .stamp-grid{
+            display:grid;grid-template-columns:repeat(5,1fr);
+            gap:12px
+        }
+        .stamp-item{
+            background:rgba(255,255,255,.08);
+            border-radius:12px;padding:12px;
+            text-align:center;cursor:pointer;
+            border:2px solid transparent
+        }
+        .stamp-item:hover{background:rgba(255,255,255,.12)}
+        .stamp-item.selected{border-color:#ffb700;box-shadow:0 0 12px rgba(255,183,0,.4)}
+        .stamp-item img{
+            max-width:100%;max-height:80px;
+            object-fit:contain
+        }
+
+        /* 上传与结果 */
+        .upload-area{
+            text-align:center;padding:30px;
+            border:2px dashed rgba(255,255,255,.2);
+            border-radius:12px;cursor:pointer;margin:0 0 20px
+        }
+        .upload-area:hover{border-color:#66b3ff}
+        #fileInput{display:none}
+        .preview-area{
+            display:flex;flex-wrap:wrap;gap:12px;
+            margin:0 0 20px
+        }
+        .preview-item{
+            position:relative;width:120px;height:120px;
+            border-radius:8px;overflow:hidden;background:#000
+        }
+        .preview-item img{width:100%;height:100%;object-fit:cover}
+        .remove{
+            position:absolute;top:4px;right:4px;
+            width:24px;height:24px;background:red;
+            border-radius:50%;color:#fff;display:flex;
+            align-items:center;justify-content:center;cursor:pointer
+        }
+        .btn{
+            padding:14px 32px;border:none;
+            border-radius:999px;background:linear-gradient(90deg,#0099ff,#00ccff);
+            color:#fff;font-size:18px;cursor:pointer;width:100%;
+            font-weight:bold
+        }
+        .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+        .result-area{margin:20px 0 0;display:none}
+        .result-item{
+            display:flex;align-items:center;gap:12px;
+            background:rgba(255,255,255,.05);padding:12px;border-radius:12px;margin:0 0 12px
+        }
+        .result-item img{width:80px;height:80px;object-fit:cover;border-radius:8px}
+        .download{
+            background:#00cc66;border:none;color:#fff;
+            padding:8px 16px;border-radius:8px;cursor:pointer
+        }
+        .config-info{
+            background:rgba(0,0,0,.2);padding:12px 16px;
+            border-radius:8px;margin:0 0 20px;font-size:16px;
+            line-height:1.6;color:#e0e0e0
+        }
+        .config-info strong{color:#66b3ff}
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>LiCN海报助手</h1>
+        <p>450x700 · 限定标处理 · 不改变文件大小</p>
+    </div>
+
+    <div class="section">
+        <h2>选择限定标</h2>
+        <div class="config-info">
+            位置：<strong>中心偏下</strong> | 大小：<strong>图片宽度85%</strong> | 处理后尺寸：<strong>450x700</strong> | <strong>不改变文件大小</strong>
+        </div>
+        <div class="stamp-button-wrapper">
+            <button id="stampBtn">点击选择限定标</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>上传图片</h2>
+        <div class="upload-area" id="uploadArea">
+            <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp" multiple>
+            <p>点击或拖拽图片上传<br>支持 JPG / PNG / WebP，可多选 | 单张=一张处理，批量=批量处理</p>
+        </div>
+        <div class="preview-area" id="previewArea"></div>
+        <button class="btn" id="processBtn" disabled>开始处理</button>
+        <div class="result-area" id="resultArea"></div>
+    </div>
+</div>
+
+<!-- 限定标弹窗 -->
+<div class="stamp-modal" id="stampModal">
+    <div class="stamp-modal-box">
+        <div class="stamp-modal-header">
+            <div class="stamp-modal-title">选择限定标</div>
+            <button class="stamp-close" id="stampClose">×</button>
+        </div>
+        <div class="stamp-grid" id="stampGrid"></div>
+    </div>
+</div>
+
+<script>
+    // 配置
+    const targetSize = { width: 450, height: 700 };
+    const keepFileSize = true;
+    let selectedStamp = null;
+    let uploadedFiles = [];
+
+    // 生成10个限定标 1.png~10.png，左→右、上→下，不显示名字
+    const stampGrid = document.getElementById('stampGrid');
+    for (let i = 1; i <= 10; i++) {
+        const item = document.createElement('div');
+        item.className = 'stamp-item';
+        item.dataset.index = i;
+        item.innerHTML = `<img src="/${i}.png" alt="">`;
+        stampGrid.appendChild(item);
+
+        item.onclick = () => {
+            // 选中样式
+            document.querySelectorAll('.stamp-item').forEach(s=>s.classList.remove('selected'));
+            item.classList.add('selected');
+            selectedStamp = i;
+            // 关闭弹窗
+            document.getElementById('stampModal').classList.remove('active');
+            checkProcessBtn();
+        };
+    }
+
+    // 弹窗控制
+    const stampModal = document.getElementById('stampModal');
+    document.getElementById('stampBtn').onclick = () => stampModal.classList.add('active');
+    document.getElementById('stampClose').onclick = () => stampModal.classList.remove('active');
+    stampModal.onclick = (e)=>{ if(e.target === stampModal) stampModal.classList.remove('active') };
+
+    // 上传控制
+    const fileInput = document.getElementById('fileInput');
+    const uploadArea = document.getElementById('uploadArea');
+    const previewArea = document.getElementById('previewArea');
+    const processBtn = document.getElementById('processBtn');
+    const resultArea = document.getElementById('resultArea');
+
+    uploadArea.onclick = () => fileInput.click();
+    fileInput.onchange = handleFiles;
+
+    function handleFiles(files) {
+        uploadedFiles = Array.from(files).filter(f=>f.type.startsWith('image/'));
+        previewArea.innerHTML = "";
+
+        uploadedFiles.forEach((file, idx) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const item = document.createElement('div');
+                item.className = "preview-item";
+                item.innerHTML = `<img src="${e.target.result}"><div class="remove" data-idx="${idx}">×</div>`;
+                previewArea.appendChild(item);
+
+                item.querySelector('.remove').onclick = () => {
+                    uploadedFiles.splice(idx, 1);
+                    item.remove();
+                    checkProcessBtn();
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+        checkProcessBtn();
+    }
+
+    function checkProcessBtn() {
+        processBtn.disabled = uploadedFiles.length === 0 || selectedStamp === null;
+    }
+
+    // 处理图片
+    processBtn.onclick = async () => {
+        resultArea.style.display = "none";
+        resultArea.innerHTML = "";
+
+        for (let i = 0; i < uploadedFiles.length; i++) {
+            const file = uploadedFiles[i];
+            const blob = await processImage(file);
+            const url = URL.createObjectURL(blob);
+
+            const item = document.createElement('div');
+            item.className = "result-item";
+            item.innerHTML = `
+                <img src="${url}">
+                <div>
+                    <p>${file.name}</p>
+                    <p>尺寸：450x700 | 限定标：已添加</p>
+                </div>
+                <button class="download" data-url="${url}" data-name="${file.name}">下载</button>
+            `;
+            resultArea.appendChild(item);
+
+            item.querySelector('.download').onclick = (e) => {
+                const a = document.createElement('a');
+                a.href = e.target.dataset.url;
+                a.download = "处理_"+e.target.dataset.name;
+                a.click();
+            };
+        }
+
+        resultArea.style.display = "block";
+    };
+
+    // 核心处理函数
+    async function processImage(file) {
+        return new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+
+                    // 目标尺寸 450x700
+                    canvas.width = targetSize.width;
+                    canvas.height = targetSize.height;
+
+                    // 原图等比缩放居中
+                    const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+                    const w = img.width * scale;
+                    const h = img.height * scale;
+                    const x = (canvas.width - w) / 2;
+                    const y = (canvas.height - h) / 2;
+                    ctx.drawImage(img, x, y, w, h);
+
+                    // 限定标居中偏下，宽度85%
+                    const stampImg = new Image();
+                    stampImg.onload = () => {
+                        const sW = canvas.width * 0.85;
+                        const sH = (stampImg.height / stampImg.width) * sW;
+                        const sx = (canvas.width - sW) / 2;
+                        const sy = canvas.height - sH - 20; // 底部留20px边距
+
+                        ctx.drawImage(stampImg, sx, sy, sW, sH);
+                        // 保持原质量，不改变文件大小
+                        canvas.toBlob(blob=>resolve(blob), file.type, 0.95);
+                    };
+                    stampImg.src = "/" + selectedStamp + ".png";
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+</script>
+</body>
+</html>
