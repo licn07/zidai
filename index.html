@@ -39,7 +39,6 @@
         }
         #stampBtn:hover{opacity:.9;transform:translateY(-2px);transition:all .3s}
 
-        /* 弹窗 */
         .stamp-modal{
             position:fixed;top:0;left:0;right:0;bottom:0;
             background:rgba(0,0,0,.6);display:none;
@@ -61,7 +60,6 @@
             background:none;border:none;cursor:pointer
         }
 
-        /* 限定标网格 */
         .stamp-grid{
             display:grid;grid-template-columns:repeat(5,1fr);
             gap:12px
@@ -77,7 +75,6 @@
         .stamp-item.selected{border-color:#ffb700;box-shadow:0 0 12px rgba(255,183,0,.4)}
         .stamp-item img{max-width:100%;max-height:100%;object-fit:contain;display:block}
 
-        /* 上传与结果 */
         .upload-area{
             text-align:center;padding:30px;
             border:2px dashed rgba(255,255,255,.2);
@@ -104,31 +101,24 @@
             font-weight:bold
         }
         .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+        /* 这里缩小预览图 */
         .result-area{margin:20px 0 0;display:none}
         .result-item{
-            display:flex;align-items:center;gap:12px;
-            background:rgba(255,255,255,.05);padding:12px;border-radius:12px;margin:0 0 12px
+            display:flex;align-items:center;gap:10px;
+            background:rgba(255,255,255,.05);padding:10px;border-radius:12px;margin:0 0 10px
         }
-        .result-item img{width:80px;height:80px;object-fit:cover;border-radius:8px}
-        .download{
-            background:#00cc66;border:none;color:#fff;
-            padding:8px 16px;border-radius:8px;cursor:pointer
+        .result-item img{width:50px;height:50px;object-fit:cover;border-radius:6px}
+        .result-buttons{display:flex;gap:8px;margin-left:auto}
+        .result-btn{
+            padding:8px 14px;border:none;border-radius:8px;
+            font-size:14px;cursor:pointer
         }
-        /* 加载提示 */
-        .loading-tip {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: #0099ff;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            z-index: 9999;
-            display: none;
-        }
+        .download{background:#00cc66;color:#fff}
     </style>
 </head>
 <body>
+
 <div class="container">
     <div class="header">
         <h1>LiCN海报助手</h1>
@@ -173,22 +163,22 @@
     for (let i = 1; i <= 10; i++) {
         const item = document.createElement('div');
         item.className = 'stamp-item';
-        item.innerHTML = `<img src="${i}.png" alt="标${i}">`;
-        document.getElementById('stampGrid').appendChild(item);
+        item.innerHTML = `<img src="${i}.png" alt="限定标${i}">`;
+        stampGrid.appendChild(item);
         item.onclick = () => {
             document.querySelectorAll('.stamp-item').forEach(s=>s.classList.remove('selected'));
             item.classList.add('selected');
             selectedStamp = i;
-            document.getElementById('stampModal').classList.remove('active');
+            stampModal.classList.remove('active');
             checkProcessBtn();
         };
     }
 
-    document.getElementById('stampBtn').onclick = () => stampModal.classList.add('active');
-    document.getElementById('stampClose').onclick = () => stampModal.classList.remove('active');
-    stampModal.onclick = (e)=>{ if(e.target === stampModal) stampModal.classList.remove('active') };
+    stampBtn.onclick = () => stampModal.classList.add('active');
+    stampClose.onclick = () => stampModal.classList.remove('active');
+    stampModal.onclick = (e)=>{ if(e.target === stampModal) stampModal.classList.remove('active') }
 
-    document.getElementById('uploadArea').onclick = () => fileInput.click();
+    uploadArea.onclick = () => fileInput.click();
     fileInput.onchange = (e) => handleFiles(e.target.files);
 
     function handleFiles(files) {
@@ -220,8 +210,21 @@
             const url = URL.createObjectURL(blob);
             const div = document.createElement('div');
             div.className = 'result-item';
-            div.innerHTML = `<img src="${url}"><div>${f.name}</div><a class="download" href="${url}" download="LiCN_${f.name}">下载</a>`;
+            div.innerHTML = `
+                <img src="${url}">
+                <div style="font-size:14px">${f.name}</div>
+                <div class="result-buttons">
+                    <button class="result-btn download" data-url="${url}" data-name="${f.name}">下载处理好的图片</button>
+                </div>
+            `;
             resultArea.appendChild(div);
+
+            div.querySelector('.download').onclick = (e) => {
+                const a = document.createElement('a');
+                a.href = e.target.dataset.url;
+                a.download = "LiCN_"+e.target.dataset.name;
+                a.click();
+            };
         }
     };
 
@@ -242,10 +245,9 @@
                     const sW = canvas.width * 0.85;
                     const sH = stamp.height / stamp.width * sW;
                     const sx = (canvas.width - sW) / 2;
-                    // 正中间 + 下移半个限定标 + 再下移30px（最终位置！）
                     const sy = (canvas.height - sH) / 2 + sH*0.5 + 30;
                     ctx.drawImage(stamp, sx, sy, sW, sH);
-                    canvas.toBlob(b => resolve(b), 'image/png');
+                    canvas.toBlob(b => resolve(b), 'image/png', 1);
                 };
                 stamp.src = selectedStamp + ".png";
             };
