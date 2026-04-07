@@ -172,7 +172,7 @@
     // 核心配置
     const targetSize = { width: 450, height: 700 };
     const keepFileSize = true;
-    const stampConfig = { position: 'center', sizePercent: 85 }; // 配置标记为居中
+    const stampConfig = { position: 'center', sizePercent: 85 };
     let selectedStamp = null;
     let uploadedFiles = [];
 
@@ -313,7 +313,7 @@
         resultArea.style.display = "block";
     };
 
-    // 核心处理：限定标先正中间，再轻微下移（匹配图二）
+    // 核心处理：正中间 + 下移「半个限定标高度」
     async function processImage(file) {
         return new Promise(resolve => {
             const reader = new FileReader();
@@ -333,15 +333,14 @@
                     const y = (canvas.height - h) / 2;
                     ctx.drawImage(img, x, y, w, h);
 
-                    // 限定标位置计算：先正中间，再下移30px（轻微下移，匹配图二）
+                    // 限定标位置：正中间 + 下移「自身高度的50%」（半个限定标距离）
                     const stampImg = new Image();
                     stampImg.onload = () => {
                         const sW = canvas.width * stampConfig.sizePercent / 100;
                         const sH = (stampImg.height / stampImg.width) * sW;
-                        // 水平正中间
-                        const sx = (canvas.width - sW) / 2;
-                        // 垂直正中间 + 下移30px（轻微下移，可根据需求微调数值）
-                        const sy = (canvas.height - sH) / 2 + 30;
+                        const sx = (canvas.width - sW) / 2; // 水平正中间
+                        // 垂直正中间 + 下移 sH * 0.5（半个限定标高度）
+                        const sy = (canvas.height - sH) / 2 + (sH * 0.5);
 
                         ctx.drawImage(stampImg, sx, sy, sW, sH);
                         canvas.toBlob(blob=>resolve(blob), file.type, 0.95);
