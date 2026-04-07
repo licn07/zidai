@@ -101,7 +101,7 @@
     </div>
 
     <div class="section">
-        <h2>选择限定标</h2>
+        <h2>选择限定标（可选）</h2>
         <div class="stamp-list" id="stampList"></div>
     </div>
 
@@ -111,7 +111,7 @@
         <button class="upload-btn" id="uploadBtn">点击我上传图片</button>
 
         <div class="btn-group">
-            <button class="process-btn" id="processBtn" disabled>开始处理</button>
+            <button class="process-btn" id="processBtn">开始处理</button>
             <button class="download-btn" id="downloadBtn">下载图片</button>
         </div>
 
@@ -121,7 +121,7 @@
 
 <script>
     const targetSize = { width: 450, height: 700 };
-    let selectedStamp = 1;
+    let selectedStamp = null;   // 默认不选中
     let uploadedFiles = [];
     let allUrls = [];
 
@@ -140,17 +140,16 @@
     const downloadBtn = document.getElementById('downloadBtn');
     const resultContainer = document.getElementById('resultContainer');
 
+    // 生成10个限定标，默认都不选中
     for(let i=1;i<=10;i++){
         let item = document.createElement('div');
         item.className = 'stamp-item';
-        if(i==1) item.classList.add('selected');
         item.innerHTML = `<img src="${i}.png">`;
         stampList.appendChild(item);
         item.onclick = ()=>{
             document.querySelectorAll('.stamp-item').forEach(s=>s.classList.remove('selected'));
             item.classList.add('selected');
             selectedStamp = i;
-            checkEnable();
         }
     }
 
@@ -176,12 +175,7 @@
             };
             r.readAsDataURL(f);
         });
-        checkEnable();
     };
-
-    function checkEnable(){
-        processBtn.disabled = !(uploadedFiles.length > 0 && selectedStamp);
-    }
 
     processBtn.onclick = async ()=>{
         processBtn.innerText = "处理中...";
@@ -215,36 +209,51 @@
         }
     };
 
+    // 核心处理逻辑：如果没选限定标，就直接返回原图blob
     async function processImg(file){
         return new Promise((resolve) => {
             let img = new Image();
             img.crossOrigin = "anonymous";
             img.onload = ()=>{
-                let canvas = document.createElement('canvas');
-                let ctx = canvas.getContext('2d');
-                canvas.width = 450;
-                canvas.height = 700;
-                let s = Math.max(canvas.width/img.width, canvas.height/img.height);
-                let w = img.width*s, h = img.height*s;
-                ctx.drawImage(img, (canvas.width-w)/2, (canvas.height-h)/2, w, h);
+                // 如果没选限定标，直接缩放原图返回
+                if(!selectedStamp){
+                    let canvas = document.createElement('canvas');
+                    let ctx = canvas.getContext('2d');
+                    canvas.width = targetSize.width;
+                    canvas.height = targetSize.height;
+                    let scale = Math.max(canvas.width/img.width, canvas.height/img.height);
+                    let w = img.width*scale, h = img.height*scale;
+                    ctx.drawImage(img, (canvas.width-w)/2, (canvas.height-h)/2, w, h);
+                    canvas.toBlob(resolve, 'image/png');
+                    return;
+                }
 
+                // 选了限定标，才加标
                 let stamp = new Image();
                 stamp.crossOrigin = "anonymous";
                 stamp.onload = ()=>{
+                    let canvas = document.createElement('canvas');
+                    let ctx = canvas.getContext('2d');
+                    canvas.width = targetSize.width;
+                    canvas.height = targetSize.height;
+
+                    let scale = Math.max(canvas.width/img.width, canvas.height/img.height);
+                    let w = img.width*scale, h = img.height*scale;
+                    ctx.drawImage(img, (canvas.width-w)/2, (canvas.height-h)/2, w, h);
+
                     let sw = canvas.width * 0.85;
                     let sh = stamp.height/stamp.width * sw;
                     let sx = (canvas.width - sw)/2;
                     let sy = (canvas.height - sh)/2 + sh*0.5 + 30;
                     ctx.drawImage(stamp, sx, sy, sw, sh);
-                    canvas.toBlob((b)=>resolve(b),'image/png',1);
+
+                    canvas.toBlob(resolve, 'image/png');
                 };
                 stamp.src = selectedStamp + '.png';
             };
             img.src = URL.createObjectURL(file);
         });
     }
-
-    checkEnable();
 </script>
 </body>
 </html>
