@@ -7,7 +7,7 @@
     <style>
         *{margin:0;padding:0;box-sizing:border-box;font-family:"微软雅黑",sans-serif}
         body{
-            background:linear-gradient(135deg,#1a1a2e,#162d3e);
+            background:linear-gradient(135deg,#1a1d23,#162d3e);
             min-height:100vh;padding:20px;color:#fff
         }
         .container{max-width:500px;margin:0 auto}
@@ -28,7 +28,6 @@
         .section h2{
             font-size:18px;margin-bottom:15px;text-align:center
         }
-
         .stamp-list{
             display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:10px
         }
@@ -41,7 +40,6 @@
         }
         .stamp-item img{max-width:70%;max-height:70%;object-fit:contain}
         .stamp-item.selected{border-color:#00d4ff;background:rgba(0,212,255,.2)}
-
         .preview-area{
             display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;min-height:60px
         }
@@ -49,7 +47,6 @@
             width:60px;height:60px;border-radius:8px;overflow:hidden;position:relative
         }
         .preview-item img{width:100%;height:100%;object-fit:cover}
-
         .upload-btn{
             width:100%;padding:14px;
             border:2px dashed #00d4ff;
@@ -57,7 +54,6 @@
             border-radius:12px;color:#fff;font-size:16px;
             margin-bottom:12px;cursor:pointer
         }
-
         .btn-group{
             display:flex;gap:8px;width:100%;margin-bottom:8px
         }
@@ -67,64 +63,68 @@
             background:linear-gradient(90deg,#0099ff,#00ccff);
             color:#fff;font-size:16px;cursor:pointer
         }
-        .process-btn:disabled{opacity:.5}
         .download-btn{
             flex:1;padding:14px;
             border:none;border-radius:12px;
             background:#00cc66;color:#fff;font-size:16px;cursor:pointer;display:none
         }
-
-        .result-preview{
+        .result-tip{
+            text-align:center;
+            font-size:14px;
+            color:#a0cfff;
+            margin:0 auto 6px auto;
+            width:50%;
+        }
+        .result-box{
             width:50%;
             margin:0 auto 8px auto;
             aspect-ratio:450/700;
             border-radius:12px;
             overflow:hidden;
-            background:#222;
+            position:relative;
         }
-        .result-preview img{
+        .result-img{
             width:100%;
             height:100%;
             object-fit:contain;
             display:block;
         }
-
+        .frame-overlay{
+            position:absolute;
+            top:0;
+            left:0;
+            width:100%;
+            height:100%;
+            pointer-events:none;
+        }
         #fileInput{display:none}
     </style>
 </head>
 <body>
-
 <div class="container">
     <div class="header">
         <h1>LiCN海报助手</h1>
-        <div>450×700 限定标一键生成</div>
+        <div>450×700 · 限定标批量处理</div>
     </div>
-
     <div class="section">
         <h2>选择限定标（可选）</h2>
         <div class="stamp-list" id="stampList"></div>
     </div>
-
     <div class="section">
         <div class="preview-area" id="previewArea"></div>
-
         <button class="upload-btn" id="uploadBtn">点击我上传图片</button>
-
         <div class="btn-group">
             <button class="process-btn" id="processBtn">开始处理</button>
             <button class="download-btn" id="downloadBtn">下载图片</button>
         </div>
-
         <div id="resultContainer"></div>
     </div>
 </div>
-
 <script>
     const targetSize = { width: 450, height: 700 };
-    let selectedStamp = null;   // 默认不选中
+    let selectedStamp = null;
     let uploadedFiles = [];
     let allUrls = [];
-
     const stampList = document.getElementById('stampList');
     const uploadBtn = document.getElementById('uploadBtn');
     const fileInput = document.createElement('input');
@@ -134,13 +134,11 @@
     fileInput.accept = 'image/*';
     fileInput.style.display = 'none';
     document.body.appendChild(fileInput);
-
     const previewArea = document.getElementById('previewArea');
     const processBtn = document.getElementById('processBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const resultContainer = document.getElementById('resultContainer');
 
-    // 生成10个限定标，默认都不选中
     for(let i=1;i<=10;i++){
         let item = document.createElement('div');
         item.className = 'stamp-item';
@@ -161,11 +159,9 @@
     fileInput.onchange = (e)=>{
         const files = e.target.files;
         if(!files || files.length === 0) return;
-        
         uploadedFiles = Array.from(files).filter(f=>f.type.startsWith('image/'));
         previewArea.innerHTML = '';
-        
-        uploadedFiles.forEach((f,i)=>{
+        uploadedFiles.forEach((f)=>{
             let r = new FileReader();
             r.onload = (e)=>{
                 let div = document.createElement('div');
@@ -184,14 +180,18 @@
         resultContainer.innerHTML = "";
         allUrls = [];
 
+        let tip = document.createElement('div');
+        tip.className = 'result-tip';
+        tip.innerText = '下载图片不会带方框的放心';
+        resultContainer.appendChild(tip);
+
         for(let file of uploadedFiles){
             let blob = await processImg(file);
             let url = URL.createObjectURL(blob);
             allUrls.push(url);
-
             let box = document.createElement('div');
-            box.className = 'result-preview';
-            box.innerHTML = `<img src="${url}">`;
+            box.className = 'result-box';
+            box.innerHTML = `<img class="result-img" src="${url}"><img class="frame-overlay" src="方框.png">`;
             resultContainer.appendChild(box);
         }
 
@@ -209,44 +209,37 @@
         }
     };
 
-    // 核心处理逻辑：如果没选限定标，就直接返回原图blob
     async function processImg(file){
         return new Promise((resolve) => {
             let img = new Image();
             img.crossOrigin = "anonymous";
             img.onload = ()=>{
-                // 如果没选限定标，直接缩放原图返回
                 if(!selectedStamp){
                     let canvas = document.createElement('canvas');
                     let ctx = canvas.getContext('2d');
-                    canvas.width = targetSize.width;
-                    canvas.height = targetSize.height;
+                    canvas.width = 450;
+                    canvas.height = 700;
                     let scale = Math.max(canvas.width/img.width, canvas.height/img.height);
                     let w = img.width*scale, h = img.height*scale;
                     ctx.drawImage(img, (canvas.width-w)/2, (canvas.height-h)/2, w, h);
                     canvas.toBlob(resolve, 'image/png');
                     return;
                 }
-
-                // 选了限定标，才加标
                 let stamp = new Image();
                 stamp.crossOrigin = "anonymous";
                 stamp.onload = ()=>{
                     let canvas = document.createElement('canvas');
                     let ctx = canvas.getContext('2d');
-                    canvas.width = targetSize.width;
-                    canvas.height = targetSize.height;
-
+                    canvas.width = 450;
+                    canvas.height = 700;
                     let scale = Math.max(canvas.width/img.width, canvas.height/img.height);
                     let w = img.width*scale, h = img.height*scale;
                     ctx.drawImage(img, (canvas.width-w)/2, (canvas.height-h)/2, w, h);
-
                     let sw = canvas.width * 0.85;
                     let sh = stamp.height/stamp.width * sw;
                     let sx = (canvas.width - sw)/2;
                     let sy = (canvas.height - sh)/2 + sh*0.5 + 30;
                     ctx.drawImage(stamp, sx, sy, sw, sh);
-
                     canvas.toBlob(resolve, 'image/png');
                 };
                 stamp.src = selectedStamp + '.png';
