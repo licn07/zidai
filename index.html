@@ -156,7 +156,7 @@
         <h2>
             选择限定标
             <label style="display:flex;align-items:center;gap:4px">
-                <input type="checkbox" id="useStamp"> <!-- 这里默认不勾选 -->
+                <input type="checkbox" id="useStamp">
                 <span style="font-size:14px">使用</span>
             </label>
         </h2>
@@ -223,4 +223,106 @@
 
     uploadBtn.onclick = ()=>{
         fileInput.value = '';
-        fileInput.click()
+        fileInput.click();
+    };
+
+    fileInput.onchange = (e)=>{
+        const files = e.target.files;
+        if(!files || files.length === 0) return;
+        uploadedFiles = Array.from(files).filter(f=>f.type.startsWith('image/'));
+        previewArea.innerHTML = '';
+        uploadedFiles.forEach((f)=>{
+            let r = new FileReader();
+            r.onload = (e)=>{
+                let div = document.createElement('div');
+                div.className = 'preview-item';
+                div.innerHTML = `<img src="${e.target.result}">`;
+                previewArea.appendChild(div);
+            };
+            r.readAsDataURL(f);
+        });
+    };
+
+    processBtn.onclick = async ()=>{
+        processBtn.innerText = "处理中...";
+        processBtn.disabled = true;
+        downloadBtn.style.display = "none";
+        resultContainer.innerHTML = "";
+        allResults = [];
+
+        let tip = document.createElement('div');
+        tip.className = 'result-tip';
+        tip.innerText = '下载图片不会带方框的放心';
+        resultContainer.appendChild(tip);
+
+        let retryTip = document.createElement('div');
+        retryTip.className = 'retry-tip';
+        retryTip.innerText = '重新选择图片点击处理完成可再次处理图片';
+        resultContainer.appendChild(retryTip);
+
+        for(let file of uploadedFiles){
+            let blob = await processImg(file);
+            let url = URL.createObjectURL(blob);
+            allResults.push({ url });
+
+            let box = document.createElement('div');
+            box.className = 'result-box';
+            box.innerHTML = `<img class="result-img" src="${url}"><img class="frame-overlay" src="边框.png">`;
+            resultContainer.appendChild(box);
+        }
+
+        processBtn.innerText = "处理完成";
+        processBtn.disabled = false;
+        downloadBtn.style.display = "block";
+    };
+
+    downloadBtn.onclick = ()=>{
+        allResults.forEach((item, index) => {
+            let a = document.createElement('a');
+            a.href = item.url;
+            a.download = `LiCN@-${index + 1}.png`;
+            a.click();
+        });
+    };
+
+    async function processImg(file){
+        return new Promise((resolve) => {
+            let img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = ()=>{
+                if(!useStamp.checked || !selectedStamp){
+                    let canvas = document.createElement('canvas');
+                    let ctx = canvas.getContext('2d');
+                    canvas.width = 450;
+                    canvas.height = 700;
+                    let scale = Math.max(canvas.width/img.width, canvas.height/img.height);
+                    let w = img.width*scale, h = img.height*scale;
+                    ctx.drawImage(img, (canvas.width-w)/2, (canvas.height-h)/2, w, h);
+                    canvas.toBlob(resolve, 'image/png');
+                    return;
+                }
+                let stamp = new Image();
+                stamp.crossOrigin = "anonymous";
+                stamp.onload = ()=>{
+                    let canvas = document.createElement('canvas');
+                    let ctx = canvas.getContext('2d');
+                    canvas.width = 450;
+                    canvas.height = 700;
+                    let scale = Math.max(canvas.width/img.width, canvas.height/img.height);
+                    let w = img.width*scale, h = img.height*scale;
+                    ctx.drawImage(img, (canvas.width-w)/2, (canvas.height-h)/2, w, h);
+                    let sw = canvas.width * 0.85;
+                    let sh = stamp.height/stamp.width * sw;
+                    let sx = (canvas.width - sw)/2;
+                    let sy = (canvas.height - sh)/2 + sh*0.5 + 30;
+                    ctx.drawImage(stamp, sx, sy, sw, sh);
+                    canvas.toBlob(resolve, 'image/png');
+                };
+                stamp.src = selectedStamp + '.png';
+            };
+            img.src = URL.createObjectURL(file);
+        });
+    }
+</script>
+</body>
+</html>
