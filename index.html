@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>LiCN海报助手</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box;font-family:"微软雅黑",sans-serif}
@@ -34,6 +34,7 @@
             justify-content: center;
             gap: 8px;
         }
+
         .stamp-wrap{
             overflow:hidden;
             height:70px;
@@ -210,7 +211,7 @@
             const img = new Image();
             img.onload = () => resolve("边框.png");
             img.onerror = () => resolve("方框.png");
-            img.src = "边框.png";
+            img.src = "边框.png?rand=" + Math.random();
         });
     }
 
@@ -289,13 +290,25 @@
         downloadBtn.style.display = "block";
     };
 
-    downloadBtn.onclick = ()=>{
-        allResults.forEach((item, index) => {
-            let a = document.createElement('a');
+    // 核心修复：手机浏览器批量下载防拦截，逐个延迟下载
+    downloadBtn.onclick = async ()=>{
+        downloadBtn.disabled = true;
+        downloadBtn.innerText = "下载中...";
+        
+        for(let i=0; i<allResults.length; i++){
+            const item = allResults[i];
+            const a = document.createElement('a');
             a.href = item.url;
-            a.download = `LiCN@-${index + 1}.png`;
+            a.download = `LiCN@-${i + 1}.png`;
+            document.body.appendChild(a);
             a.click();
-        });
+            document.body.removeChild(a);
+            // 延迟300ms，避免浏览器批量拦截
+            await new Promise(resolve => setTimeout(resolve, 300));
+        }
+
+        downloadBtn.disabled = false;
+        downloadBtn.innerText = "下载图片";
     };
 
     async function processImg(file){
